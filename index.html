@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+
+    <title>Joonas Lehtisyrjä</title>
+
+    <link rel="icon" href="/favicon.svg" />
+    <style>
+      @font-face {
+        font-family: "EB Garamond";
+        font-style: normal;
+        font-weight: 400 800;
+        font-display: swap;
+        src: url(https://fonts.gstatic.com/s/ebgaramond/v27/SlGUmQSNjdsmc35JDF1K5GR1SDk_YAPI.woff2)
+          format("woff2");
+      }
+
+      body {
+        background: #000;
+        color: #fff;
+        min-height: 100vh;
+        margin: 0;
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+
+        font-family: "EB Garamond", serif;
+        font-optical-sizing: auto;
+        font-size: 4.5vmin;
+        font-weight: 400;
+        font-style: normal;
+        letter-spacing: 0.2vmin;
+        text-rendering: optimizeLegibility;
+
+        @media (min-width: 500px) {
+          font-size: 3.5vmin;
+        }
+      }
+
+      h1 {
+        font-size: 5vmin;
+        margin: 0;
+
+        @media (min-width: 500px) {
+          font-size: 4.5vmin;
+        }
+      }
+
+      main {
+        width: 40vmin;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      .jl-logo {
+        width: 100%;
+        height: 100%;
+        margin-bottom: 1vmin;
+      }
+
+      .gfx {
+        color: #999;
+        position: absolute;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <svg
+        class="jl-logo"
+        xmlns="http://www.w3.org/2000/svg"
+        width="400"
+        height="400"
+        fill="none"
+        viewBox="0 0 400 400"
+      >
+        <g stroke="#fff" clip-path="url(#a)">
+          <path fill="#fff" d="M231.5 170.5h-25v126h25z" />
+          <path
+            fill="#fff"
+            d="M278.5 275.037h-72V296.5h72zM167.5 170.5h25v126h-25z"
+          />
+          <path fill="#fff" d="M120.5 275.037h72V296.5h-72z" />
+          <path stroke-width="26" d="M49.312 326 200 65l150.688 261z" />
+        </g>
+        <defs>
+          <clipPath id="a"><path fill="#fff" d="M0 0h400v400H0z" /></clipPath>
+        </defs>
+      </svg>
+      <h1>Joonas Lehtisyrjä</h1>
+      <p>Software engineer</p>
+    </main>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "../lib/three.module.js",
+          "three/addons/": "../lib/three-addons/"
+        }
+      }
+    </script>
+    <script type="module">
+      import * as THREE from "three"
+      import { AsciiEffect } from "three/addons/effects/AsciiEffect.js"
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js"
+
+      let camera,
+        orbitControls,
+        scene,
+        renderer,
+        effect,
+        geometries,
+        mesh,
+        material
+
+      const ids = []
+      const meshCount = 200
+
+      const matrix = new THREE.Matrix4()
+      const position = new THREE.Vector3()
+      const rotation = new THREE.Euler()
+      const quaternion = new THREE.Quaternion()
+      const scale = new THREE.Vector3()
+
+      init()
+      initGeometries()
+      initMesh()
+
+      function randomPosition() {
+        return Math.random() * 50 - 20
+      }
+      function randomRotation() {
+        return Math.random() * 2 * Math.PI
+      }
+      function randomScale() {
+        return 0.5 + Math.random() * 0.4
+      }
+
+      function randomizeMatrix(matrix) {
+        position.x = randomPosition()
+        position.y = randomPosition()
+        position.z = randomPosition()
+
+        rotation.x = randomRotation()
+        rotation.y = randomRotation()
+        rotation.z = randomRotation()
+        quaternion.setFromEuler(rotation)
+
+        scale.x = scale.y = scale.z = randomScale()
+
+        return matrix.compose(position, quaternion, scale)
+      }
+
+      function setRotationSpeed(rotation) {
+        rotation.x = rotation.y = rotation.z = 0.01
+        return rotation
+      }
+
+      function initGeometries() {
+        geometries = [
+          new THREE.ConeGeometry(1.0, 2.0),
+          new THREE.BoxGeometry(2.0, 0.5, 0.5),
+          new THREE.BoxGeometry(1.0, 1.0, 1.0),
+        ]
+      }
+
+      function createMaterial() {
+        if (!material) {
+          material = new THREE.MeshBasicMaterial({ color: "#fff" })
+        }
+
+        return material
+      }
+
+      function cleanup() {
+        if (mesh) {
+          mesh.parent.remove(mesh)
+
+          if (mesh.dispose) {
+            mesh.dispose()
+          }
+        }
+      }
+
+      function initMesh() {
+        cleanup()
+        initBatchedMesh()
+      }
+
+      function initBatchedMesh() {
+        const geometryCount = meshCount
+        const vertexCount = geometries.length * 512
+        const indexCount = geometries.length * 1024
+
+        const euler = new THREE.Euler()
+        const matrix = new THREE.Matrix4()
+        mesh = new THREE.BatchedMesh(
+          geometryCount,
+          vertexCount,
+          indexCount,
+          createMaterial(),
+        )
+        mesh.userData.rotationSpeeds = []
+
+        ids.length = 0
+
+        const geometryIds = [
+          mesh.addGeometry(geometries[0]),
+          mesh.addGeometry(geometries[1]),
+          mesh.addGeometry(geometries[2]),
+        ]
+
+        for (let i = 0; i < meshCount; i++) {
+          const id = mesh.addInstance(geometryIds[i % geometryIds.length])
+          mesh.setMatrixAt(id, randomizeMatrix(matrix))
+
+          const rotationMatrix = new THREE.Matrix4()
+          rotationMatrix.makeRotationFromEuler(setRotationSpeed(euler))
+          mesh.userData.rotationSpeeds.push(rotationMatrix)
+
+          ids.push(id)
+        }
+        scene.add(mesh)
+      }
+
+      function init() {
+        const width = window.innerWidth
+        const height = window.innerHeight
+
+        camera = new THREE.PerspectiveCamera(70, width / height, 1, 100)
+        camera.position.z = -20
+
+        renderer = new THREE.WebGLRenderer({ antialias: true })
+        renderer.setPixelRatio(window.devicePixelRatio)
+        renderer.setSize(width, height)
+        renderer.setAnimationLoop(animate)
+
+        effect = new AsciiEffect(renderer, " .,:;iIhHoOE#$", { invert: true })
+        effect.setSize(window.innerWidth, window.innerHeight)
+        effect.domElement.className = "gfx"
+
+        document.body.appendChild(effect.domElement)
+
+        scene = new THREE.Scene()
+        scene.background = new THREE.Color(0x000000)
+        scene.fog = new THREE.Fog(0x000000, -20, 45)
+
+        orbitControls = new OrbitControls(camera, effect.domElement)
+        orbitControls.autoRotate = true
+        orbitControls.autoRotateSpeed = 1.0
+        orbitControls.enablePan = false
+        orbitControls.maxDistance = 50.0
+
+        window.addEventListener("resize", onWindowResize)
+      }
+
+      function onWindowResize() {
+        const width = window.innerWidth
+        const height = window.innerHeight
+        camera.aspect = width / height
+        camera.updateProjectionMatrix()
+        renderer.setSize(width, height)
+        effect.setSize(width, height)
+      }
+
+      function animate() {
+        animateMeshes()
+        orbitControls.update()
+        effect.render(scene, camera)
+      }
+
+      function animateMeshes() {
+        for (let i = 0; i < 32; i++) {
+          const rotationMatrix = mesh.userData.rotationSpeeds[i]
+          const id = ids[i]
+
+          mesh.getMatrixAt(id, matrix)
+          matrix.multiply(rotationMatrix)
+          mesh.setMatrixAt(id, matrix)
+        }
+      }
+    </script>
+  </body>
+</html>
